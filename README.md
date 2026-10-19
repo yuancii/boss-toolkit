@@ -12,6 +12,7 @@
 | `tools.py` | 三个可被 Agent 调用的函数：`send_message` / `read_excel` / `query_sql`，含 OpenAI `tools` 描述 |
 | `demo.py` | 端到端演示：生成示例 SQLite 库 → 直接调工具 → 可选走 Agent 完成"统计 + 播报" |
 | `automation.py` | Playwright 网页自动化：打开页面、抓取链接、导出 CSV（utf-8-sig，Excel 可直接打开） |
+| `tests/` | pytest 单测：工具函数正常/异常分支（11 个用例） |
 
 ## 快速开始
 
@@ -35,6 +36,9 @@ python demo.py --agent
 
 # 4) 网页自动化
 python automation.py https://example.com data/links.csv
+
+# 5) 单元测试
+python -m pytest -q
 ```
 
 ## 目录结构
@@ -45,6 +49,8 @@ boss-toolkit/
 ├── tools.py              # 供 Agent 调用的函数 + tools 描述
 ├── demo.py               # 建示例库、本地调用、Agent 演示
 ├── automation.py         # Playwright 抓取脚本
+├── tests/test_tools.py   # pytest 单测（11 个用例）
+├── pytest.ini            # pythonpath = .，让测试能 import tools
 ├── requirements.txt
 ├── .env.example          # 环境变量模板（真实 Key 不入库）
 └── data/                 # 运行后生成 demo.db / links.csv
@@ -107,8 +113,16 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 
 真实 Key 只放在环境变量或 `.env`，`.env` 已在 `.gitignore` 中。
 
+### 5. 单元测试
+
+```bash
+python -m pytest -q
+```
+
+覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）。
+
 ## 后续可扩展
 
 - 把 `tools.py` 接到真实业务系统（企业微信/钉钉发消息、MySQL 查询）；
-- 增加 `README` 里的单元测试（`pytest`），覆盖工具函数的边界情况；
-- 引入 LangChain / Dify 做对比实验，记录各自的适用场景。
+- 引入 LangChain / Dify 做对比实验，记录各自的适用场景；
+- 给 `llm_client.py` 加"多轮对话记忆"与"工具调用失败重试"。
