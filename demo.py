@@ -70,11 +70,25 @@ def agent_demo() -> None:
     from llm_client import call_with_tools
     from tools import TOOL_FUNCS, TOOL_SPECS
 
+    # 提示词要点：
+    #   1) 说明数据在哪（否则模型会反问"数据从哪来"）；
+    #   2) 明确要求"能用工具就直接用，不要反问"，否则它会停下来要信息；
+    #   3) 把目标拆成具体步骤（先查、再播报）。
+    system = (
+        "你是数据处理助手，可以使用提供的工具（query_sql / send_message / read_excel）。"
+        "本地已有 SQLite 数据库 data/demo.db，表 orders 的字段为："
+        "id, category, quantity, unit_price, order_date。"
+        "当工具足以完成任务时，直接调用工具，不要反问用户要信息。"
+    )
+    question = (
+        "用 SQL 统计各品类销售额（销售额 = quantity * unit_price，按品类分组），"
+        "按从高到低排序；然后把前两名的品类和销售额用 send_message 播报出来。"
+    )
+
     print("-- 交给模型的提问：")
-    question = "帮我统计各品类销售额，按从高到低排序，然后把前两名发一条消息播报出来。"
     print(question)
     print("-- Agent 结果：")
-    print(call_with_tools(question, TOOL_SPECS, TOOL_FUNCS))
+    print(call_with_tools(question, TOOL_SPECS, TOOL_FUNCS, system=system))
 
 
 if __name__ == "__main__":
