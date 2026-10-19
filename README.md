@@ -1,5 +1,7 @@
 # boss-toolkit
 
+[![tests](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml)
+
 面向「AI 应用开发 / RPA 交付」方向的 Python 练习项目：**大模型 API 调用 + 工具函数封装 + 网页自动化 + 数据库查询**。
 
 所有代码只用 `requests` 与标准库完成核心逻辑（不依赖各家 SDK），方便看清调用细节。
