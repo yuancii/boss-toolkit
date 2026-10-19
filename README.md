@@ -56,6 +56,13 @@ python -m pytest -q
 > 第二张图是一次完整链路：模型先返回 `tool_calls: query_sql` → 本地执行 SQL → 结果回传 →
 > 再返回 `tool_calls: send_message` → 最后由模型总结成表格与结论。
 
+### MySQL 版实测（MySQL 8.4.11）
+
+![MySQL 实测](docs/demo-mysql.png)
+
+> 依次验证：连通性（`SELECT 1`）、GROUP BY 汇总、`DELETE` 被只读拦截、每日报表按日期区间过滤
+> （报表只统计"昨天"，因此排除了前天的订单，合计 18,092.00 而不是 21,969.00）。
+
 ## 目录结构
 
 ```
@@ -67,6 +74,8 @@ boss-toolkit/
 ├── demo.py               # 建示例库、本地调用、Agent 演示
 ├── automation.py         # Playwright 抓取脚本
 ├── tests/test_tools.py   # pytest 单测（11 个用例）
+├── tests/test_tools_mysql.py  # MySQL 逻辑与报表格式化单测（10 个用例）
+├── scripts/init_mysql.sql     # 建库 + 样例数据 + 只读账号（一条命令初始化）
 ├── pytest.ini            # pythonpath = .，让测试能 import tools
 ├── requirements.txt
 ├── .env.example          # 环境变量模板（真实 Key 不入库）
@@ -126,15 +135,20 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 `tools.py` 用 SQLite 只是为了 demo 能直接跑；真实业务换成 `tools_mysql.py` 即可：
 
 ```bash
-# 环境变量（或用只读账号）
+# 初始化测试库（建库 + 样例数据 + 只读账号 reader/readonly123）
+mysql -u root -p < scripts/init_mysql.sql
+
+# 环境变量（生产请换成真实只读账号）
 export MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=reader \
-       MYSQL_PASSWORD=xxx MYSQL_DB=business
+       MYSQL_PASSWORD=readonly123 MYSQL_DB=business
 
 python tools_mysql.py "SELECT 1 AS n"        # 手工验证连接
 python daily_report.py --dry-run             # 只打印 SQL，不连库
 python daily_report.py                       # 统计昨天并输出报表
 python daily_report.py --date 2026-10-18     # 指定日期
 ```
+
+已在 **MySQL 8.4.11（Windows ZIP 便携版）** 实测：连通、GROUP BY 汇总、写操作拦截、日期区间过滤均正确。
 
 `tools_mysql.py` 的安全约束（模型生成的 SQL 不可信）：
 
