@@ -21,7 +21,11 @@ playwright install chromium          # 仅自动化脚本需要
 
 # 1) 本地演示（不需要 API Key）
 python demo.py
+```
 
+> Windows 终端若中文乱码：先执行 `chcp 65001`，或设置环境变量 `PYTHONIOENCODING=utf-8`。
+
+```bash
 # 2) 大模型 API
 export DEEPSEEK_API_KEY=sk-xxxx      # Windows PowerShell: $env:DEEPSEEK_API_KEY="sk-xxxx"
 python llm_client.py
