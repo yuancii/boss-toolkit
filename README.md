@@ -61,7 +61,9 @@ python -m pytest -q
 ```
 boss-toolkit/
 ├── llm_client.py         # 大模型 API 封装（同步 / 流式 / 工具调用）
-├── tools.py              # 供 Agent 调用的函数 + tools 描述
+├── tools.py              # 供 Agent 调用的函数 + tools 描述（SQLite 版）
+├── tools_mysql.py        # 同上的 MySQL 版查询（只读 + LIMIT + 超时）
+├── daily_report.py       # 定时报表脚本（可挂计划任务 / cron）
 ├── demo.py               # 建示例库、本地调用、Agent 演示
 ├── automation.py         # Playwright 抓取脚本
 ├── tests/test_tools.py   # pytest 单测（11 个用例）
@@ -119,6 +121,40 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 
 `automation.py` 用 Playwright 打开页面，`eval_on_selector_all` 一次取回链接文本与 href，写入 CSV；表头用 `utf-8-sig`，Excel 打开不乱码。
 
+### 6. 接入 MySQL 与定时任务
+
+`tools.py` 用 SQLite 只是为了 demo 能直接跑；真实业务换成 `tools_mysql.py` 即可：
+
+```bash
+# 环境变量（或用只读账号）
+export MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=reader \
+       MYSQL_PASSWORD=xxx MYSQL_DB=business
+
+python tools_mysql.py "SELECT 1 AS n"        # 手工验证连接
+python daily_report.py --dry-run             # 只打印 SQL，不连库
+python daily_report.py                       # 统计昨天并输出报表
+python daily_report.py --date 2026-10-18     # 指定日期
+```
+
+`tools_mysql.py` 的安全约束（模型生成的 SQL 不可信）：
+
+- 只放行 `SELECT` / `WITH`，禁止多语句；
+- 自动补 `LIMIT`（默认 200 行），避免一次拉爆内存；
+- `SET SESSION MAX_EXECUTION_TIME` 限制慢查询；
+- 建议数据库侧给**只读账号**：`GRANT SELECT ON business.* TO 'reader'@'%'`。
+
+挂定时任务：
+
+```powershell
+# Windows：每天 9:00
+schtasks /create /tn "daily-report" /tr "python E:\Code file\boss\daily_report.py" /sc daily /st 09:00
+```
+
+```bash
+# Linux：crontab -e
+0 9 * * * cd /path/boss && /usr/bin/python3 daily_report.py >> /var/log/daily_report.log 2>&1
+```
+
 ## 环境变量
 
 | 变量 | 说明 | 默认 |
@@ -135,7 +171,7 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 python -m pytest -q
 ```
 
-覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）。
+覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）；`tools_mysql` 的 SQL 校验（非 SELECT、多语句、补 LIMIT）与日报格式化（不连数据库）。
 
 ## 后续可扩展
 
