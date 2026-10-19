@@ -1,0 +1,20 @@
+# 环境变量与密钥
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 运行产物
+data/*.db
+data/*.csv
+*.log
+
+# 编辑器
+.idea/
+.vscode/
+.DS_Store
