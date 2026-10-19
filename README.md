@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml)
 
-面向「AI 应用开发 / RPA 交付」方向的 Python 练习项目：**大模型 API 调用 + 工具函数封装 + 网页自动化 + 数据库查询**。
+面向「AI 应用开发 / RPA 交付」方向的 Python 练习项目：**大模型 API 调用 + 工具函数封装 + 网页自动化 + SQLite/MySQL 查询**。
 
 所有代码只用 `requests` 与标准库完成核心逻辑（不依赖各家 SDK），方便看清调用细节。
 
@@ -14,7 +14,7 @@
 | `tools.py` | 三个可被 Agent 调用的函数：`send_message` / `read_excel` / `query_sql`，含 OpenAI `tools` 描述 |
 | `demo.py` | 端到端演示：生成示例 SQLite 库 → 直接调工具 → 可选走 Agent 完成"统计 + 播报" |
 | `automation.py` | Playwright 网页自动化：打开页面、抓取链接、导出 CSV（utf-8-sig，Excel 可直接打开） |
-| `tests/` | pytest 单测：工具函数正常/异常分支（11 个用例） |
+| `tests/` | pytest 单测：21 个用例（SQLite 工具函数 + MySQL 逻辑与报表格式化） |
 
 ## 快速开始
 
@@ -130,6 +130,14 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 
 `automation.py` 用 Playwright 打开页面，`eval_on_selector_all` 一次取回链接文本与 href，写入 CSV；表头用 `utf-8-sig`，Excel 打开不乱码。
 
+### 5. 单元测试
+
+```bash
+python -m pytest -q
+```
+
+覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）；`tools_mysql` 的 SQL 校验（非 SELECT、多语句、补 LIMIT）与日报格式化（不连数据库）。
+
 ### 6. 接入 MySQL 与定时任务
 
 `tools.py` 用 SQLite 只是为了 demo 能直接跑；真实业务换成 `tools_mysql.py` 即可：
@@ -178,14 +186,6 @@ schtasks /create /tn "daily-report" /tr "python E:\Code file\boss\daily_report.p
 | `DEEPSEEK_MODEL` | 模型名 | `deepseek-chat` |
 
 真实 Key 只放在环境变量或 `.env`，`.env` 已在 `.gitignore` 中。
-
-### 5. 单元测试
-
-```bash
-python -m pytest -q
-```
-
-覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）；`tools_mysql` 的 SQL 校验（非 SELECT、多语句、补 LIMIT）与日报格式化（不连数据库）。
 
 ## 后续可扩展
 
