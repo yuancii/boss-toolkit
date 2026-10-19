@@ -43,6 +43,19 @@ python automation.py https://example.com data/links.csv
 python -m pytest -q
 ```
 
+## 示例输出
+
+### 本地演示（无需 API Key）
+
+![本地演示](docs/demo-local.png)
+
+### Function Calling 全链路（`python demo.py --agent`）
+
+![Agent 调用](docs/demo-agent.png)
+
+> 第二张图是一次完整链路：模型先返回 `tool_calls: query_sql` → 本地执行 SQL → 结果回传 →
+> 再返回 `tool_calls: send_message` → 最后由模型总结成表格与结论。
+
 ## 目录结构
 
 ```
@@ -55,6 +68,7 @@ boss-toolkit/
 ├── pytest.ini            # pythonpath = .，让测试能 import tools
 ├── requirements.txt
 ├── .env.example          # 环境变量模板（真实 Key 不入库）
+├── docs/                 # README 用的示例截图
 └── data/                 # 运行后生成 demo.db / links.csv
 ```
 
