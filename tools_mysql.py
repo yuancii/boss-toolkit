@@ -17,7 +17,22 @@ DEFAULT_LIMIT = 200
 STATEMENT_TIMEOUT_MS = 10_000
 
 _SELECT_RE = re.compile(r"^\s*(select|with)\b", re.IGNORECASE)
-_HAS_LIMIT_RE = re.compile(r"\blimit\s+\d+\s*$", re.IGNORECASE)
+# 末尾 LIMIT 的各种写法：LIMIT 10 / LIMIT 10 OFFSET 20 / LIMIT 20, 10 / LIMIT ?
+_HAS_LIMIT_RE = re.compile(
+    r"\blimit\s+(?:\d+|\?|%s)(?:\s*,\s*(?:\d+|\?|%s))?(?:\s+offset\s+(?:\d+|\?|%s))?\s*$",
+    re.IGNORECASE,
+)
+_TRAILING_COMMENT_RE = re.compile(r"(?:--[^\n]*|/\*.*?\*/)\s*$", re.DOTALL)
+
+
+def _without_trailing_comments(sql: str) -> str:
+    """去掉末尾的 -- 行注释与 /* */ 块注释，避免它们挡住 LIMIT 判断。"""
+    text = sql.rstrip()
+    while True:
+        stripped = _TRAILING_COMMENT_RE.sub("", text).rstrip()
+        if stripped == text:
+            return text
+        text = stripped
 
 
 def _conn_config() -> dict:
@@ -48,7 +63,7 @@ def validate_sql(sql: str, limit: int = DEFAULT_LIMIT) -> str:
         raise ValueError("只允许 SELECT / WITH 查询")
     if ";" in statement:
         raise ValueError("不允许一次执行多条语句")
-    if not _HAS_LIMIT_RE.search(statement):
+    if not _HAS_LIMIT_RE.search(_without_trailing_comments(statement)):
         statement = f"{statement}\nLIMIT {int(limit)}"
     return statement
 

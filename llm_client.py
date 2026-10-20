@@ -15,6 +15,7 @@ BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstri
 MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 TIMEOUT = 60
 RETRIES = 3
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 SYSTEM_DEFAULT = "你是一个严谨的助手，回答要简洁、准确，不确定时直接说明。"
 
@@ -29,8 +30,12 @@ def _headers() -> dict:
 
 
 def _post(payload: dict, stream: bool = False):
-    """统一 POST，自带 429 指数退避与超时重试。"""
-    last_error = None
+    """统一 POST：网络错误与 429/5xx 指数退避重试，其余 4xx 立刻失败。
+
+    只有"再试一次可能成功"的失败才值得重试；400/401/403 是参数或鉴权问题，
+    重试只会白等几秒，还把真正的状态码与响应体埋掉。
+    """
+    last_error = ""
     for attempt in range(RETRIES):
         try:
             resp = requests.post(
@@ -40,15 +45,17 @@ def _post(payload: dict, stream: bool = False):
                 timeout=TIMEOUT,
                 stream=stream,
             )
-            if resp.status_code == 429:
-                time.sleep(2 ** attempt)
-                continue
-            resp.raise_for_status()
-            return resp
         except requests.RequestException as exc:
-            last_error = exc
+            last_error = f"{type(exc).__name__}: {exc}"
+        else:
+            if resp.ok:
+                return resp
+            last_error = f"HTTP {resp.status_code}: {resp.text[:300]}"
+            if resp.status_code not in RETRYABLE_STATUS:
+                raise RuntimeError(f"请求失败 {last_error}")
+        if attempt < RETRIES - 1:
             time.sleep(2 ** attempt)
-    raise RuntimeError(f"请求失败: {last_error}")
+    raise RuntimeError(f"请求失败 {last_error}")
 
 
 def chat(
@@ -97,6 +104,29 @@ def chat_stream(prompt: str, system: str = SYSTEM_DEFAULT) -> None:
     print()
 
 
+def _run_tool(tool_funcs: dict, function: dict) -> dict:
+    """执行一次工具调用：函数不存在、参数不是 JSON、函数内部抛错都折成 {"error"}。
+
+    工具失败不该中断整个 Agent 循环——把错误回灌给模型，它才有机会改参数重试。
+    """
+    name = function.get("name") or ""
+    func = tool_funcs.get(name)
+    if func is None:
+        return {"error": f"未知函数 {name}"}
+    try:
+        args = json.loads(function.get("arguments") or "{}")
+    except json.JSONDecodeError as exc:
+        return {"error": f"参数不是合法 JSON: {exc}"}
+    if not isinstance(args, dict):
+        return {"error": "参数必须是 JSON 对象"}
+    try:
+        return func(**args)
+    except TypeError as exc:
+        return {"error": f"参数不匹配: {exc}"}
+    except Exception as exc:  # 工具自身的失败同样回灌给模型
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
 def call_with_tools(
     prompt: str,
     tools: list[dict],
@@ -128,15 +158,12 @@ def call_with_tools(
             }
         )
         for call in tool_calls:
-            name = call["function"]["name"]
-            args = json.loads(call["function"].get("arguments") or "{}")
-            func = tool_funcs.get(name)
-            result = func(**args) if func else {"error": f"未知函数 {name}"}
+            result = _run_tool(tool_funcs, call["function"])
             messages.append(
                 {
                     "role": "tool",
                     "tool_call_id": call["id"],
-                    "content": json.dumps(result, ensure_ascii=False),
+                    "content": json.dumps(result, ensure_ascii=False, default=str),
                 }
             )
     return "已达到最大工具调用轮数，任务未完成"

@@ -12,6 +12,9 @@ venv/
 # 运行产物
 data/*.db
 data/*.csv
+data/*.xlsx
+data/processed/
+skill-build/**/*.zip
 *.log
 
 # 编辑器

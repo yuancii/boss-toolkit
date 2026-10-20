@@ -57,8 +57,9 @@ def query_sql(sql: str, db_path: str | None = None) -> dict:
         conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(statement).fetchmany(50)
-            columns = [d[0] for d in conn.execute(statement).description or []]
+            cursor = conn.execute(statement)
+            columns = [d[0] for d in cursor.description or []]
+            rows = cursor.fetchmany(50)
         finally:
             conn.close()
         return {

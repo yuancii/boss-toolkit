@@ -1,6 +1,7 @@
 """tools_mysql 的纯逻辑测试：不连数据库，只测 SQL 校验与报表格式化。"""
 
 import datetime as dt
+from decimal import Decimal
 
 import pytest
 
@@ -29,6 +30,27 @@ class TestValidateSql:
         sql = validate_sql("SELECT * FROM orders LIMIT 10")
         assert sql.count("LIMIT") == 1
         assert "LIMIT 200" not in sql
+
+    def test_keeps_limit_with_offset(self):
+        sql = validate_sql("SELECT * FROM orders LIMIT 10 OFFSET 20")
+        assert sql.count("LIMIT") == 1
+
+    def test_keeps_comma_form_limit(self):
+        sql = validate_sql("SELECT * FROM orders LIMIT 20, 10")
+        assert sql.count("LIMIT") == 1
+
+    def test_keeps_placeholder_limit(self):
+        assert validate_sql("SELECT * FROM orders LIMIT ?").count("LIMIT") == 1
+        assert validate_sql("SELECT * FROM orders LIMIT %s").count("LIMIT") == 1
+
+    def test_keeps_limit_before_trailing_comment(self):
+        sql = validate_sql("SELECT * FROM orders LIMIT 10 -- 只看一页")
+        assert sql.count("LIMIT") == 1
+
+    def test_appends_limit_after_trailing_comment(self):
+        sql = validate_sql("SELECT * FROM orders /* 备注 */")
+        assert sql.count("LIMIT") == 1
+        assert sql.endswith("LIMIT 200")
 
     def test_accepts_with_cte(self):
         assert validate_sql("WITH t AS (SELECT 1) SELECT * FROM t").startswith("WITH")
@@ -62,3 +84,20 @@ class TestDailyReport:
     def test_format_report_with_error(self):
         text = format_report(dt.date(2026, 10, 18), {"ok": False, "error": "连接超时"})
         assert "查询失败" in text and "连接超时" in text
+
+    def test_format_report_accepts_decimal_from_db(self):
+        # pymysql 的 DECIMAL 列返回 decimal.Decimal，不是 float
+        result = {
+            "ok": True,
+            "rows": [
+                {"品类": "平板", "订单数": 2, "件数": 4, "销售额": Decimal("15594.00")},
+                {"品类": "手机", "订单数": 2, "件数": 3, "销售额": Decimal("11997.00")},
+            ],
+        }
+        text = format_report(dt.date(2026, 10, 18), result)
+        assert "27,591.00" in text
+
+    def test_format_report_tolerates_missing_amount(self):
+        result = {"ok": True, "rows": [{"品类": "平板", "订单数": 1, "件数": 1}]}
+        text = format_report(dt.date(2026, 10, 18), result)
+        assert "合计销售额 0.00" in text

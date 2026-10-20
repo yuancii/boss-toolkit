@@ -16,6 +16,7 @@
 import argparse
 import datetime as dt
 import sys
+from decimal import Decimal, InvalidOperation
 
 from tools_mysql import query_sql, validate_sql
 
@@ -36,6 +37,17 @@ def build_sql(day: dt.date) -> str:
     return SUMMARY_SQL.format(day=day.isoformat(), next_day=next_day.isoformat()).strip()
 
 
+def _to_decimal(value: object) -> Decimal:
+    """金额转 Decimal：pymysql 返回的就是 Decimal，字符串与浮点也接受。
+
+    None 或脏数据按 0 处理，避免一行坏数据让整篇日报失败。
+    """
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return Decimal("0")
+
+
 def format_report(day: dt.date, result: dict) -> str:
     if not result.get("ok"):
         return f"[{day}] 查询失败：{result.get('error')}"
@@ -44,13 +56,14 @@ def format_report(day: dt.date, result: dict) -> str:
     if not rows:
         return f"[{day}] 无订单数据"
 
-    total = sum(float(r.get("销售额") or 0) for r in rows)
+    # 金额一律用 Decimal 累加：float 在多行相加时会出现 0.01 级误差
+    total = sum((_to_decimal(r.get("销售额")) for r in rows), Decimal("0"))
     lines = [f"[{day}] 日报：共 {len(rows)} 个品类，合计销售额 {total:,.2f}"]
     for index, row in enumerate(rows, start=1):
         lines.append(
             f"  {index}. {row.get('品类')}："
             f"{row.get('订单数')} 单 / {row.get('件数')} 件 / "
-            f"{float(row.get('销售额') or 0):,.2f}"
+            f"{_to_decimal(row.get('销售额')):,.2f}"
         )
     return "\n".join(lines)
 

@@ -1,0 +1,8 @@
+{
+  "name": "order-data-analysis",
+  "version": "1.0.0",
+  "description": "查询订单库并生成中文销售日报",
+  "entry": "SKILL.md",
+  "tools": ["query_sql", "send_message"],
+  "permissions": ["read_db"]
+}
