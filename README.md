@@ -73,8 +73,10 @@ boss-toolkit/
 ├── daily_report.py       # 定时报表脚本（可挂计划任务 / cron）
 ├── demo.py               # 建示例库、本地调用、Agent 演示
 ├── automation.py         # Playwright 抓取脚本
-├── tests/test_tools.py   # pytest 单测（11 个用例）
-├── tests/test_tools_mysql.py  # MySQL 逻辑与报表格式化单测（10 个用例）
+├── tests/test_tools.py             # SQLite 工具函数单测（11 个用例）
+├── tests/test_tools_mysql.py       # MySQL SQL 校验与日报格式化单测（17 个用例）
+├── tests/test_llm_client.py        # HTTP 层与工具调用单测，mock requests（15 个用例）
+├── tests/test_skill_query_sql.py   # skill 脚本纯逻辑单测（8 个用例）
 ├── scripts/init_mysql.sql     # 建库 + 样例数据 + 只读账号（一条命令初始化）
 ├── pytest.ini            # pythonpath = .，让测试能 import tools
 ├── requirements.txt
@@ -136,7 +138,7 @@ WHERE order_date >= '2026-10-01' ORDER BY order_date;
 python -m pytest -q
 ```
 
-覆盖：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）；`tools_mysql` 的 SQL 校验（非 SELECT、多语句、补 LIMIT）与日报格式化（不连数据库）。
+覆盖 51 个用例：`send_message` 正常/空文本；`query_sql` 正常聚合、日期筛选、拒绝写操作（DELETE/DROP/UPDATE）、库不存在、语法错误；`read_excel` 文件不存在与正常读取前 N 行（pandas/openpyxl 未安装时自动跳过）；`tools_mysql` 的 SQL 校验（非 SELECT、多语句、补 LIMIT、OFFSET／逗号／占位符／尾随注释）与日报格式化（不连数据库，含 Decimal 入参与空值）；`llm_client` 的 4xx 不重试、429/5xx 与网络错误重试、缺 Key 直接失败，以及 `call_with_tools` 的工具异常回灌（mock requests，不发真实请求）；skill 脚本的 `ensure_limit` 与 JSON 失败路径。
 
 ### 6. 接入 MySQL 与定时任务
 
