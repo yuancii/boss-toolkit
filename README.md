@@ -14,7 +14,7 @@
 | `tools.py` | 三个可被 Agent 调用的函数：`send_message` / `read_excel` / `query_sql`，含 OpenAI `tools` 描述 |
 | `demo.py` | 端到端演示：生成示例 SQLite 库 → 直接调工具 → 可选走 Agent 完成"统计 + 播报" |
 | `automation.py` | Playwright 网页自动化：打开页面、抓取链接、导出 CSV（utf-8-sig，Excel 可直接打开） |
-| `tests/` | pytest 单测：21 个用例（SQLite 工具函数 + MySQL 逻辑与报表格式化） |
+| `tests/` | pytest 单测：51 个用例（SQLite 工具函数 + MySQL 逻辑与报表格式化） |
 
 ## 快速开始
 
