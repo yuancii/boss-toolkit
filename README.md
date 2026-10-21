@@ -1,4 +1,4 @@
-# boss-toolkit
+# toolkit
 
 [![tests](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/yuancii/boss-toolkit/actions/workflows/test.yml)
 
